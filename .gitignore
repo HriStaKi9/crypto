@@ -37,6 +37,10 @@ htmlcov/
 pgdata/
 *.dump
 *.sql.bak
+# Локални override-и (напр. лек db build вместо timescaledb-ha, ако
+# pull-ването на official image-а е бавно на конкретна мрежа) — не се
+# комитва, docker compose го прилага автоматично ако съществува.
+docker-compose.override.yml
 
 # --- Frontend (web/) ---
 web/node_modules/

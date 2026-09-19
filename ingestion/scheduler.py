@@ -9,6 +9,7 @@ CLAUDE.md е 2 седмици непрекъснат поток, без моде
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
@@ -28,12 +29,17 @@ def _job(name: str, fn) -> None:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     scheduler = BlockingScheduler(timezone="UTC")
+    now = datetime.now(timezone.utc)
 
-    scheduler.add_job(lambda: _job("gdelt", gdelt.run_once), "interval", minutes=15, id="gdelt", misfire_grace_time=300)
-    scheduler.add_job(lambda: _job("cryptopanic", cryptopanic.run_once), "interval", minutes=10, id="cryptopanic", misfire_grace_time=300)
-    scheduler.add_job(lambda: _job("rss_feeds", rss_feeds.run_once), "interval", minutes=15, id="rss_feeds", misfire_grace_time=300)
-    scheduler.add_job(lambda: _job("binance", binance.run_once), "interval", hours=1, id="binance", misfire_grace_time=600)
-    scheduler.add_job(lambda: _job("equities", equities.run_once), "interval", hours=24, id="equities", misfire_grace_time=3600)
+    # next_run_time=now: първи fire веднага при старт (не след цял
+    # interval) — за да не гледаш празен dashboard 15-24ч след `docker
+    # compose up`. Малко разминати start offset-и, за да не тръгнат
+    # всичките 5 job-а в една и съща секунда.
+    scheduler.add_job(lambda: _job("gdelt", gdelt.run_once), "interval", minutes=15, id="gdelt", misfire_grace_time=300, next_run_time=now)
+    scheduler.add_job(lambda: _job("cryptopanic", cryptopanic.run_once), "interval", minutes=10, id="cryptopanic", misfire_grace_time=300, next_run_time=now + timedelta(seconds=5))
+    scheduler.add_job(lambda: _job("rss_feeds", rss_feeds.run_once), "interval", minutes=15, id="rss_feeds", misfire_grace_time=300, next_run_time=now + timedelta(seconds=10))
+    scheduler.add_job(lambda: _job("binance", binance.run_once), "interval", hours=1, id="binance", misfire_grace_time=600, next_run_time=now + timedelta(seconds=15))
+    scheduler.add_job(lambda: _job("equities", equities.run_once), "interval", hours=24, id="equities", misfire_grace_time=3600, next_run_time=now + timedelta(seconds=20))
 
     logger.info("Ingestion scheduler стартиран (UTC). Ctrl+C за спиране.")
     try:
