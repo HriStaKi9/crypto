@@ -129,6 +129,12 @@ def finish_run(
     status: str = "ok",
     error_text: Optional[str] = None,
 ) -> None:
+    # Ако finish_run се вика от except блок след провалена INSERT/UPDATE,
+    # сесията стои в "aborted transaction" състояние — всеки следващ
+    # statement (включително този UPDATE) би гръмнал с
+    # InFailedSqlTransaction и би скрил истинската грешка. В успешния
+    # път upsert_* вече е commit-нал, така че rollback тук е no-op.
+    session.rollback()
     session.execute(
         text(
             """
@@ -167,7 +173,7 @@ def upsert_news_raw(session: Session, source_id: int, articles: Iterable[dict]) 
                     title, body, language, publisher, published_at, raw_payload
                 ) VALUES (
                     :source_id, :source_uid, :url, :url_canonical, :url_hash,
-                    :title, :body, :language, :publisher, :published_at, :raw_payload::jsonb
+                    :title, :body, :language, :publisher, :published_at, CAST(:raw_payload AS jsonb)
                 )
                 ON CONFLICT (source_id, source_uid) DO NOTHING
                 RETURNING raw_id
