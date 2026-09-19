@@ -24,6 +24,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from sqlalchemy import bindparam, text
 from sqlalchemy.orm import Session
 
+from db.session import get_session
+
 logger = logging.getLogger(__name__)
 
 _TRACKING_PARAMS = {
@@ -240,3 +242,25 @@ def upsert_prices(
             rows_new += 1
     session.commit()
     return rows_new
+
+
+def run_source(source_name: str, fetch_fn) -> None:
+    """Стандартна обвивка за 'един source → list[dict] от news_raw редове'
+    (CryptoPanic, RSS feed-ове): start_run → fetch_fn() → upsert_news_raw →
+    finish_run, с отделна сесия/транзакция за всеки source. Изолацията
+    между source-и е нарочна — провал на един feed не бива да остави
+    сесията в неизползваемо състояние за следващия.
+    """
+    with get_session() as session:
+        source_id = get_source_id(session, source_name)
+        run_id = start_run(session, source_id)
+        try:
+            rows = fetch_fn()
+            fetched = len(rows)
+            new = upsert_news_raw(session, source_id, rows)
+        except Exception as exc:
+            finish_run(session, run_id, 0, 0, status="failed", error_text=str(exc))
+            raise
+        else:
+            finish_run(session, run_id, fetched, new, status="ok")
+            logger.info("%s: %d статии, %d нови", source_name, fetched, new)

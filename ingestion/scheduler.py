@@ -12,7 +12,7 @@ import logging
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from ingestion import binance, cryptopanic, equities, gdelt
+from ingestion import binance, cryptopanic, equities, gdelt, rss_feeds
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,8 @@ def main() -> None:
     scheduler = BlockingScheduler(timezone="UTC")
 
     scheduler.add_job(lambda: _job("gdelt", gdelt.run_once), "interval", minutes=15, id="gdelt", misfire_grace_time=300)
-    scheduler.add_job(lambda: _job("cryptopanic_rss", cryptopanic.run_once), "interval", minutes=10, id="cryptopanic_rss", misfire_grace_time=300)
+    scheduler.add_job(lambda: _job("cryptopanic", cryptopanic.run_once), "interval", minutes=10, id="cryptopanic", misfire_grace_time=300)
+    scheduler.add_job(lambda: _job("rss_feeds", rss_feeds.run_once), "interval", minutes=15, id="rss_feeds", misfire_grace_time=300)
     scheduler.add_job(lambda: _job("binance", binance.run_once), "interval", hours=1, id="binance", misfire_grace_time=600)
     scheduler.add_job(lambda: _job("equities", equities.run_once), "interval", hours=24, id="equities", misfire_grace_time=3600)
 

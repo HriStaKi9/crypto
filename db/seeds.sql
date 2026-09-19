@@ -17,6 +17,15 @@ INSERT INTO sources (name, kind, tier_latency_s, trust_weight, active) VALUES
     ('cryptopanic',      'news',    0, 0.85, TRUE),
     ('rss_coindesk',     'news',    0, 0.90, TRUE),
     ('rss_theblock',     'news',    0, 0.90, TRUE),
+    -- Общи пазарни RSS feed-ове (не крипто-специфични) — виж ingestion/rss_feeds.py.
+    -- reuters: активно проверено (2026-09-19) — reuters.com връща 401 на
+    -- всички публични RSS пътища (спрени преди години), reutersagency.com
+    -- feed-а е 404. Оставен неактивен вместо изтрит — ако намериш работещ
+    -- URL, смени active на TRUE.
+    ('reuters',          'news',    0, 0.95, FALSE),
+    ('marketwatch',      'news',    0, 0.85, TRUE),
+    ('investing_com',    'news',    0, 0.75, TRUE),  -- aggregator-стил, по-нисък trust
+    ('yahoo_finance',    'news',    0, 0.85, TRUE),  -- per-тикер RSS, виж YAHOO_TICKERS
     ('binance',          'price',   0, 1.00, TRUE),
     ('coingecko',        'price',   0, 0.90, TRUE),
     ('yfinance',         'price',   0, 1.00, TRUE),
