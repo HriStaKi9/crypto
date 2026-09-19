@@ -4,6 +4,64 @@
 правила (point-in-time, immutable news, без ливъридж) и фиксирания
 обхват на активите.
 
+## Статус: Етап 1 (Ingestion + storage) — завършен код, тече валидация
+
+Етап 1 по CLAUDE.md е "само събиране: без модел, без сигнали", с цел
+2 седмици непрекъснат поток. Кодовата част е готова; самото 2-седмично
+изпълнение тепърва тече (стартирано от датата, на която `docker
+compose up` е пуснат за постоянно, не от датата на този commit).
+
+### Какво прави
+
+```
+Източници (8 news + 4 price)          ingestion/*.py            PostgreSQL/TimescaleDB
+─────────────────────────      ───────────────────────      ──────────────────────────
+GDELT DOC 2.0 API          ──▶  gdelt.py                 ──▶
+CryptoPanic API            ──▶  cryptopanic.py            ──▶  news_raw
+CoinDesk/TheBlock RSS      ──▶  rss_feeds.py              ──▶  (immutable,
+MarketWatch/Investing.com/                                     insert-only)
+Yahoo Finance RSS          ──▶
+                                                                    │
+Binance klines REST        ──▶  binance.py                ──▶      │
+yfinance (дневни)          ──▶  equities.py               ──▶  prices
+Finnhub (интрадей, опц.)   ──▶                             ──▶  (hypertable)
+
+Всеки run се логва в ingest_runs (started_at/status/rows_fetched/
+rows_new/error_text) — пълен одит без нужда да четеш логове на ръка.
+```
+
+- **Point-in-time е гарантирано от БД, не от дисциплина.** `news_raw.available_at`
+  е `GENERATED ALWAYS AS (GREATEST(published_at, ingested_at))` — никой
+  Python код не решава кога една новина "става видима", СУБД-то го
+  налага структурно (CLAUDE.md, правило 1).
+- **Нищо не се трие/update-ва в `news_raw`.** Всеки upsert е `ON
+  CONFLICT DO NOTHING` — суровите данни са append-only, дедупът е за
+  Етап 2 (`nlp/dedup.py`, отделен слой `news_events`).
+- **Цените не се мърджват между източници при запис.** `source_id` е
+  част от PK на `prices`; изгледът `prices_resolved` решава коя цена
+  печели при четене (primary source, после по `trust_weight`).
+- **`ingestion/scheduler.py`** е единствената дълготрайна услуга —
+  APScheduler orchestrator, всеки source на реалния си update ритъм
+  (GDELT/RSS ~15 мин, CryptoPanic 10 мин, крипто цени на час, акции
+  дневно). Първо изпълнение е веднага при старт, не след цял interval.
+- **`api/main.py`** е read-only monitoring dashboard (не Stage 4
+  сигнал API-то от CLAUDE.md) — `http://localhost:8000`, auto-refresh
+  30 сек: overview метрики, freshness по актив, пълен `ingest_runs`
+  статус, последни цени/новини. Виж таблицата с контейнери по-долу.
+
+### Известни ограничения
+
+- **Reuters няма работещ публичен RSS** (проверено на живо — 401/404
+  на всеки известен път). Редът е в `sources` с `active=FALSE`, кодът
+  не го тегли. Ако намериш работещ feed, виж коментара в
+  `ingestion/rss_feeds.py`.
+- **GDELT rate-limit-ва агресивно** при чести заявки от един IP — кодът
+  го третира като нормален отказ (per-asset try/except, run-ът пак
+  завършва `ok`), не е бъг, но означава непълно покритие в отделни цикли.
+- Bulk backfill (`equities.py --backfill`, десетки хиляди редове) е
+  бавен — insert ред-по-ред, не bulk. Без значение за нормалния
+  инкрементален синхрон, само за еднократен пълен исторически import.
+
 ## Пускане локално
 
 ```bash
