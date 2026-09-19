@@ -1,2 +1,0 @@
-location = "centralus"
-environment = "production"

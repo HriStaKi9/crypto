@@ -1,2 +1,0 @@
-# outputs.tf: Here, you can define the output values that you want to display after running the Terraform apply command. 
-# Outputs are useful for providing information to users after the infrastructure has been deployed.
