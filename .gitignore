@@ -1,0 +1,55 @@
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+
+# --- Test / coverage ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- ML / model caches ---
+.cache/
+*.pt
+*.bin
+*.onnx
+
+# --- Docker / DB ---
+pgdata/
+*.dump
+*.sql.bak
+
+# --- Frontend (web/) ---
+web/node_modules/
+web/.next/
+web/out/
+web/.env*
+!web/.env.example
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- Logs ---
+*.log
+logs/

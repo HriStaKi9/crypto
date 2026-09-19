@@ -1,0 +1,34 @@
+# --- Core / API ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.8
+pydantic-settings>=2.4
+python-dotenv>=1.0
+
+# --- DB ---
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+alembic>=1.13
+apscheduler>=3.10
+
+# --- Data / ingestion ---
+requests>=2.32
+httpx>=0.27
+feedparser>=6.0
+yfinance>=0.2.40
+python-binance>=1.0.19
+
+# --- NLP / sentiment ---
+transformers>=4.42
+torch>=2.3
+tokenizers>=0.19
+
+# --- Signals / backtest ---
+pandas>=2.2
+numpy>=1.26
+ta>=0.11
+vectorbt>=0.26
+
+# --- Testing ---
+pytest>=8.2
+pytest-asyncio>=0.23
