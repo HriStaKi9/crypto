@@ -1,0 +1,19 @@
+# Минимален runtime за api/ и ingestion/ контейнерите (Dockerfile).
+# НЕ включва ML/backtest зависимостите от requirements.txt
+# (transformers/torch/vectorbt) — те са за Етап 2-3 и правят image-а
+# многократно по-голям и по-бавен за build без да са нужни тук.
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+jinja2>=3.1
+pydantic>=2.8
+pydantic-settings>=2.4
+python-dotenv>=1.0
+
+sqlalchemy>=2.0
+psycopg[binary]>=3.2
+apscheduler>=3.10
+
+requests>=2.32
+feedparser>=6.0
+yfinance>=0.2.40

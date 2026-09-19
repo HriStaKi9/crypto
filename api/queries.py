@@ -62,3 +62,67 @@ def get_latest_prices(session: Session) -> list[dict]:
         )
     ).mappings().all()
     return [dict(r) for r in rows]
+
+
+def get_overview_metrics(session: Session) -> dict:
+    """Обобщени числа за целия ingestion поток — първото нещо, което показва
+    дали 2-седмичният непрекъснат collection от CLAUDE.md Етап 1 наистина тече.
+    """
+    row = session.execute(
+        text(
+            """
+            SELECT
+                (SELECT count(*) FROM news_raw) AS total_news,
+                (SELECT count(*) FROM news_raw WHERE available_at > now() - interval '24 hours') AS news_last_24h,
+                (SELECT count(*) FROM prices) AS total_price_bars,
+                (SELECT count(*) FROM sources WHERE active) AS active_sources,
+                (
+                    SELECT count(*)
+                    FROM sources s
+                    WHERE EXISTS (
+                        SELECT 1 FROM ingest_runs ir
+                        WHERE ir.source_id = s.source_id
+                        ORDER BY ir.started_at DESC
+                        LIMIT 1
+                    )
+                ) AS sources_ever_run,
+                (
+                    SELECT count(*) FROM (
+                        SELECT DISTINCT ON (ir.source_id) ir.status
+                        FROM ingest_runs ir
+                        ORDER BY ir.source_id, ir.started_at DESC
+                    ) latest
+                    WHERE latest.status = 'ok'
+                ) AS sources_last_run_ok,
+                (
+                    SELECT count(*) FROM (
+                        SELECT DISTINCT ON (ir.source_id) ir.status
+                        FROM ingest_runs ir
+                        ORDER BY ir.source_id, ir.started_at DESC
+                    ) latest
+                    WHERE latest.status IN ('failed', 'running')
+                ) AS sources_last_run_bad
+            """
+        )
+    ).mappings().first()
+    return dict(row) if row else {}
+
+
+def get_asset_freshness(session: Session) -> list[dict]:
+    """Колко назад е последният ценови бар за всеки актив — вижда се веднага
+    ако някой asset е спрял да получава данни, без да четеш ingest_runs ред по ред.
+    """
+    rows = session.execute(
+        text(
+            """
+            SELECT a.symbol, a.class, p.bar_interval,
+                   MAX(p.ts) AS latest_ts,
+                   EXTRACT(EPOCH FROM (now() - MAX(p.ts))) / 3600.0 AS staleness_hours
+            FROM assets a
+            LEFT JOIN prices p ON p.asset_id = a.asset_id
+            GROUP BY a.symbol, a.class, p.bar_interval
+            ORDER BY a.symbol, p.bar_interval
+            """
+        )
+    ).mappings().all()
+    return [dict(r) for r in rows]

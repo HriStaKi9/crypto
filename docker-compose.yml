@@ -32,5 +32,44 @@ services:
       db:
         condition: service_healthy
 
+  # Личен monitoring dashboard (api/main.py) — http://localhost:8000.
+  # Read-only observability върху ingestion таблиците, НЕ Stage 4
+  # сигнал engine API-то от CLAUDE.md.
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mse_api
+    restart: unless-stopped
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    env_file:
+      - .env
+    environment:
+      # Вътре в docker мрежата хостът е service name-а 'db', не localhost
+      # от .env (който е за връзка от host машината, напр. през Adminer).
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mse}:${POSTGRES_PASSWORD:-mse}@db:5432/${POSTGRES_DB:-market_signal_engine}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Непрекъснатият ingestion поток от CLAUDE.md Етап 1 (GDELT/RSS/
+  # CryptoPanic/Binance/yfinance на техния реален update ритъм).
+  ingestion:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mse_ingestion
+    restart: unless-stopped
+    command: python -m ingestion.scheduler
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-mse}:${POSTGRES_PASSWORD:-mse}@db:5432/${POSTGRES_DB:-market_signal_engine}
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   db_data:

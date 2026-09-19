@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="30">
 <title>Ingestion Monitor</title>
 <style>
   :root { color-scheme: dark; }
@@ -12,7 +13,7 @@
     margin: 0; padding: 24px; background: #0d1117; color: #e6edf3;
   }
   h1 { font-size: 1.3rem; margin: 0 0 4px; }
-  .sub { color: #8b949e; font-size: 0.85rem; margin-bottom: 28px; }
+  .sub { color: #8b949e; font-size: 0.85rem; margin-bottom: 24px; }
   section { margin-bottom: 32px; }
   h2 { font-size: 1rem; color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 6px; }
   table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
@@ -23,15 +24,76 @@
   .status-failed { color: #f85149; }
   .status-running { color: #d29922; }
   .status-none, .status-None { color: #8b949e; }
+  .fresh-ok { color: #3fb950; }
+  .fresh-stale { color: #d29922; }
+  .fresh-dead { color: #f85149; }
   a { color: #58a6ff; text-decoration: none; }
   a:hover { text-decoration: underline; }
   .muted { color: #8b949e; }
   .table-wrap { overflow-x: auto; }
+  .tiles { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 28px; }
+  .tile {
+    flex: 1 1 140px; background: #161b22; border: 1px solid #30363d;
+    border-radius: 6px; padding: 12px 16px;
+  }
+  .tile .value { font-size: 1.5rem; font-weight: 600; }
+  .tile .label { color: #8b949e; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .tile.warn .value { color: #d29922; }
+  .tile.bad .value { color: #f85149; }
 </style>
 </head>
 <body>
   <h1>Market Signal Engine — Ingestion Monitor</h1>
-  <div class="sub">Само наблюдение на суровия ingestion поток (Етап 1 от CLAUDE.md). Не е сигнал engine — няма buy/hold/sell тук.</div>
+  <div class="sub">Само наблюдение на суровия ingestion поток (Етап 1 от CLAUDE.md). Не е сигнал engine — няма buy/hold/sell тук. Auto-refresh на 30 сек.</div>
+
+  <div class="tiles">
+    <div class="tile">
+      <div class="value">{{ overview.total_news }}</div>
+      <div class="label">Новини общо</div>
+    </div>
+    <div class="tile">
+      <div class="value">{{ overview.news_last_24h }}</div>
+      <div class="label">Новини (24ч)</div>
+    </div>
+    <div class="tile">
+      <div class="value">{{ overview.total_price_bars }}</div>
+      <div class="label">Ценови бар-ове</div>
+    </div>
+    <div class="tile">
+      <div class="value">{{ overview.active_sources }}</div>
+      <div class="label">Активни sources</div>
+    </div>
+    <div class="tile {{ 'bad' if overview.sources_last_run_bad else '' }}">
+      <div class="value">{{ overview.sources_last_run_ok }}/{{ overview.sources_ever_run }}</div>
+      <div class="label">Последен run: ok</div>
+    </div>
+  </div>
+
+  <section>
+    <h2>Freshness по актив</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>Актив</th><th>Клас</th><th>Interval</th><th>Последен бар (UTC)</th><th>Изостава с</th></tr>
+      {% for f in freshness %}
+      <tr>
+        <td>{{ f.symbol }}</td>
+        <td>{{ f.class }}</td>
+        <td>{{ f.bar_interval or "—" }}</td>
+        <td>{{ f.latest_ts or "—" }}</td>
+        {% if f.staleness_hours is none %}
+        <td class="fresh-dead">никога</td>
+        {% elif f.staleness_hours > 48 %}
+        <td class="fresh-dead">{{ "%.1f"|format(f.staleness_hours) }}ч</td>
+        {% elif f.staleness_hours > 6 %}
+        <td class="fresh-stale">{{ "%.1f"|format(f.staleness_hours) }}ч</td>
+        {% else %}
+        <td class="fresh-ok">{{ "%.1f"|format(f.staleness_hours) }}ч</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </section>
 
   <section>
     <h2>Sources</h2>
